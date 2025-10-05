@@ -15,8 +15,8 @@ page = st.sidebar.selectbox("Navigate", ["Home", "Upload Dataset & Train", "Pred
 if page == "Home":
     st.subheader("Welcome!")
     st.write("""
-    Predict brain tumor type, stage, and location based on patient symptoms and important details.
-    Only key information is required from the user.
+    Predict brain tumor type, stage, and location based on patient symptoms and key details.
+    Only necessary information is required from the user.
     """)
 
 # --- Upload & Train ---
@@ -33,14 +33,15 @@ elif page == "Upload Dataset & Train":
         except Exception as e:
             st.error(f"Error reading file: {e}")
         else:
-            st.write("Dataset preview:")
-            st.dataframe(df.head())
+            st.write("Columns in dataset:", df.columns.tolist())
 
             # --- Preprocessing ---
             df_model = df.copy()
 
-            # Identify important columns for input
-            important_cols = ['Gender','Age'] + [col for col in df_model.columns if 'Symptom' in col]
+            # Expected input columns
+            expected_cols = ['Gender', 'Age'] + [col for col in df_model.columns if 'Symptom' in col]
+            important_cols = [col for col in expected_cols if col in df_model.columns]
+            st.write("Using these columns for model:", important_cols)
 
             # Encode categorical features
             le_dict = {}
@@ -50,29 +51,33 @@ elif page == "Upload Dataset & Train":
                     df_model[col] = le.fit_transform(df_model[col].astype(str))
                     le_dict[col] = le
 
-            # Encode targets
+            # Encode target columns (only if they exist)
             target_cols = ['Tumor_Type','Tumor_Stage','Tumor_Location']
-            le_target = {}
-            for col in target_cols:
-                le = LabelEncoder()
-                df_model[col] = le.fit_transform(df_model[col].astype(str))
-                le_target[col] = le
+            existing_targets = [col for col in target_cols if col in df_model.columns]
+            if not existing_targets:
+                st.error("Dataset does not contain any target columns: Tumor_Type, Tumor_Stage, Tumor_Location")
+            else:
+                le_target = {}
+                for col in existing_targets:
+                    le = LabelEncoder()
+                    df_model[col] = le.fit_transform(df_model[col].astype(str))
+                    le_target[col] = le
 
-            # Features and target
-            X = df_model[important_cols].fillna(0)
-            y = df_model[target_cols]
+                # Features and target
+                X = df_model[important_cols].fillna(0)
+                y = df_model[existing_targets]
 
-            # Train multi-output classifier
-            model = MultiOutputClassifier(RandomForestClassifier(n_estimators=100, random_state=42))
-            model.fit(X, y)
-            st.success("✅ Model trained successfully!")
+                # Train multi-output classifier
+                model = MultiOutputClassifier(RandomForestClassifier(n_estimators=100, random_state=42))
+                model.fit(X, y)
+                st.success("✅ Model trained successfully!")
 
-            # Save to session
-            st.session_state['model'] = model
-            st.session_state['le_dict'] = le_dict
-            st.session_state['feature_cols'] = important_cols
-            st.session_state['target_cols'] = target_cols
-            st.session_state['symptom_cols'] = [c for c in important_cols if c not in ['Gender','Age']]
+                # Save to session
+                st.session_state['model'] = model
+                st.session_state['le_dict'] = le_dict
+                st.session_state['important_cols'] = important_cols
+                st.session_state['target_cols'] = existing_targets
+                st.session_state['symptom_cols'] = [c for c in important_cols if c not in ['Gender','Age']]
 
 # --- Predict Tumor ---
 elif page == "Predict Tumor":
@@ -81,19 +86,18 @@ elif page == "Predict Tumor":
     else:
         st.subheader("Enter patient details")
 
-        # Patient ID input
         patient_id = st.text_input("Patient ID")
-
-        # User inputs
-        gender = st.selectbox("Gender", ["Male","Female","Other"])
-        age = st.slider("Age", 1, 100)
+        gender = st.selectbox("Gender", ["Male","Female","Other"]) if 'Gender' in st.session_state['important_cols'] else None
+        age = st.slider("Age", 1, 100) if 'Age' in st.session_state['important_cols'] else None
         selected_symptoms = st.multiselect("Select Symptoms:", st.session_state['symptom_cols'])
 
         if st.button("Predict"):
             if not patient_id:
                 st.warning("Please enter Patient ID")
             else:
-                input_data = {'Gender':gender, 'Age':age}
+                input_data = {}
+                if gender is not None: input_data['Gender'] = gender
+                if age is not None: input_data['Age'] = age
                 for col in st.session_state['symptom_cols']:
                     input_data[col] = "Yes" if col in selected_symptoms else "No"
 
@@ -109,37 +113,33 @@ elif page == "Predict Tumor":
                 probs_list = model.predict_proba(input_df)
 
                 # Decode predictions
-                tumor_type = st.session_state['le_target']['Tumor_Type'].inverse_transform([preds[0]])[0]
-                tumor_stage = st.session_state['le_target']['Tumor_Stage'].inverse_transform([preds[1]])[0]
-                tumor_location = st.session_state['le_target']['Tumor_Location'].inverse_transform([preds[2]])[0]
-
-                # Display results
                 st.subheader(f"Patient ID: {patient_id}")
-                st.success(f"**Tumor Type:** {tumor_type}")
-                st.info(f"**Tumor Stage:** {tumor_stage}")
-                st.info(f"**Tumor Location:** {tumor_location}")
-
-                # Probability charts for each target
                 for i, col in enumerate(st.session_state['target_cols']):
-                    probs = probs_list[i][0]*100
+                    value = st.session_state['le_target'][col].inverse_transform([preds[i]])[0]
+                    st.success(f"**{col.replace('_',' ')}:** {value}")
+
+                    # Show probability bar chart
                     labels = st.session_state['le_target'][col].classes_
+                    probs = probs_list[i][0]*100
                     fig, ax = plt.subplots()
                     ax.bar(labels, probs, color='skyblue')
                     ax.set_ylabel("Probability (%)")
-                    ax.set_title(f"{col} Probabilities")
+                    ax.set_title(f"{col.replace('_',' ')} Probabilities")
                     st.pyplot(fig)
 
                 # Stage-specific advice
-                st.subheader("Advice & Tips")
-                if tumor_stage in ["Stage I","Stage II"]:
-                    st.write("- Early stage detected: Consult a doctor and follow treatment plan.")
-                elif tumor_stage == "Stage III":
-                    st.write("- Advanced stage: Immediate consultation and treatment required.")
-                elif tumor_stage == "Stage IV":
-                    st.write("- Critical stage: Urgent medical attention needed.")
-                else:
-                    st.write("- Follow standard medical advice and regular check-ups.")
-                st.write("- Maintain healthy lifestyle, regular check-ups, and emotional support.")
+                if 'Tumor_Stage' in st.session_state['target_cols']:
+                    stage = st.session_state['le_target']['Tumor_Stage'].inverse_transform([preds[st.session_state['target_cols'].index('Tumor_Stage')]])[0]
+                    st.subheader("Advice & Tips")
+                    if stage in ["Stage I","Stage II"]:
+                        st.write("- Early stage detected: Consult a doctor and follow treatment plan.")
+                    elif stage == "Stage III":
+                        st.write("- Advanced stage: Immediate consultation and treatment required.")
+                    elif stage == "Stage IV":
+                        st.write("- Critical stage: Urgent medical attention needed.")
+                    else:
+                        st.write("- Follow standard medical advice and regular check-ups.")
+                    st.write("- Maintain healthy lifestyle, regular check-ups, and emotional support.")
 
 # --- Advice & Tips ---
 elif page == "Advice & Tips":
