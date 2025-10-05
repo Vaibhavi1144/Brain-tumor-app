@@ -21,7 +21,7 @@ page = st.sidebar.selectbox("Navigate", [
 # --- Home Page ---
 if page == "Home":
     st.subheader("Welcome to the Brain Tumor Predictor App 🧠")
-    st.image("https://share.google/images/d7mtQ7pvRJpRAZk0H", use_container_width=True)
+    st.image("https://share.google/images/d7mtQ7pvRJpRAZk0H.jpg", use_container_width=True)
     st.write("""
     Welcome! This app is designed to help patients and healthcare professionals
     understand brain tumors, predict tumor type, stage, and location using patient
@@ -35,7 +35,7 @@ if page == "Home":
 # --- Brain Tumor Information Page ---
 elif page == "Brain Tumor Info":
     st.subheader("What is a Brain Tumor?")
-    st.image("https://share.google/images/f1km9RmVkRjKfYU3X", use_container_width=True)
+    st.image("https://share.google/images/f1km9RmVkRjKfYU3X.jpg", use_container_width=True)
     st.write("""
     A brain tumor is a mass or growth of abnormal cells in your brain. There are two
     main types: **benign** (non-cancerous) and **malignant** (cancerous).  
@@ -132,7 +132,7 @@ elif page == "Upload Dataset & Train":
 # --- Prediction Section ---
 elif page == "Predict Tumor":
     st.subheader("Step 2: Predict Tumor by Patient ID")
-    st.image("https://upload.wikimedia.org/wikipedia/commons/2/2b/Brain_MRI.jpg", use_column_width=True)
+    st.image("https://upload.wikimedia.org/wikipedia/commons/2/2b/Brain_MRI.jpg", use_container_width=True)
     patient_id_input = st.text_input("Enter Patient ID")
 
     if st.button("Predict") and 'model' in st.session_state:
@@ -195,7 +195,7 @@ elif page == "Predict Tumor":
 # --- Advice & Tips Page ---
 elif page == "Advice & Tips":
     st.subheader("General Brain Tumor Advice & Tips")
-    st.image("https://upload.wikimedia.org/wikipedia/commons/1/1e/Doctor_advice.jpg", use_column_width=True)
+    st.image("https://upload.wikimedia.org/wikipedia/commons/1/1e/Doctor_advice.jpg", use_container_width=True)
     st.write("""
     1. Immediate Consultation: See a neurologist for persistent symptoms.  
     2. Lifestyle: Eat healthy, exercise regularly, avoid smoking/alcohol.  
