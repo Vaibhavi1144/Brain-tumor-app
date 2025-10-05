@@ -21,7 +21,7 @@ page = st.sidebar.selectbox("Navigate", [
 # --- Home Page ---
 if page == "Home":
     st.subheader("Welcome to the Brain Tumor Predictor App 🧠")
-    st.image("https://upload.wikimedia.org/wikipedia/commons/2/2b/Brain_MRI.jpg", use_column_width=True)
+    st.image("https://share.google/images/d7mtQ7pvRJpRAZk0H", use_container_width=True)
     st.write("""
     Welcome! This app is designed to help patients and healthcare professionals
     understand brain tumors, predict tumor type, stage, and location using patient
@@ -35,7 +35,7 @@ if page == "Home":
 # --- Brain Tumor Information Page ---
 elif page == "Brain Tumor Info":
     st.subheader("What is a Brain Tumor?")
-    st.image("https://upload.wikimedia.org/wikipedia/commons/1/1a/Brain_Tumor_MRI.jpg", use_column_width=True)
+    st.image("https://share.google/images/f1km9RmVkRjKfYU3X", use_container_width=True)
     st.write("""
     A brain tumor is a mass or growth of abnormal cells in your brain. There are two
     main types: **benign** (non-cancerous) and **malignant** (cancerous).  
@@ -53,7 +53,6 @@ elif page == "Brain Tumor Info":
 # --- Symptoms and Prevention Page ---
 elif page == "Symptoms & Prevention":
     st.subheader("Basic Symptoms and Prevention of Brain Tumors")
-    st.image("https://upload.wikimedia.org/wikipedia/commons/f/fd/Brain_mri_axial_symptoms.jpg", use_column_width=True)
     st.write("""
     **Common Symptoms:**  
     - Persistent headaches, often worse in the morning or at night  
@@ -75,7 +74,6 @@ elif page == "Symptoms & Prevention":
 # --- Upload & Train Section ---
 elif page == "Upload Dataset & Train":
     st.subheader("Step 1: Upload Dataset")
-    st.image("https://upload.wikimedia.org/wikipedia/commons/8/88/Data_Visualization.png", use_column_width=True)
     uploaded_file = st.file_uploader("Upload Excel (.xlsx) or CSV (.csv) with Patient ID, Age, Gender, Symptoms, Tumor Details", type=["csv","xlsx"])
 
     if uploaded_file:
