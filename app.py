@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
@@ -26,33 +27,43 @@ elif page == "Upload Dataset & Train":
 
     if uploaded_file:
         try:
-            # Read dataset based on file type
+            # Read file
             if uploaded_file.name.endswith(".csv"):
                 df = pd.read_csv(uploaded_file)
             else:
-                df = pd.read_excel(uploaded_file, engine="openpyxl")  # specify engine for Excel
+                df = pd.read_excel(uploaded_file, engine="openpyxl")
         except Exception as e:
             st.error(f"Error reading file: {e}")
         else:
             st.write("Dataset Preview:")
             st.dataframe(df.head())
 
-            # Preprocessing
+            # --- Preprocessing ---
             st.write("Training model...")
+
             df_model = df.copy()
 
             # Encode categorical columns
-            le = LabelEncoder()
-            if 'Gender' in df_model.columns:
-                df_model['Gender'] = le.fit_transform(df_model['Gender'])
-            symptom_cols = [col for col in df_model.columns if 'Symptom' in col]
-            for col in symptom_cols:
-                df_model[col] = le.fit_transform(df_model[col].astype(str))
-            df_model['Tumor_Type'] = le.fit_transform(df_model['Tumor_Type'].astype(str))
+            le_dict = {}
+            for col in df_model.columns:
+                if df_model[col].dtype == 'object' and col != 'Tumor_Type':
+                    le = LabelEncoder()
+                    df_model[col] = df_model[col].astype(str)
+                    df_model[col] = le.fit_transform(df_model[col])
+                    le_dict[col] = le
 
-            # Train-test split
+            # Encode target
+            le_target = LabelEncoder()
+            df_model['Tumor_Type'] = le_target.fit_transform(df_model['Tumor_Type'].astype(str))
+
+            # Features and target
             X = df_model.drop(['Patient_ID', 'Tumor_Type'], axis=1, errors='ignore')
             y = df_model['Tumor_Type']
+
+            # Fill missing values
+            X = X.fillna(0)
+
+            # Train-test split
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
             # Train model
@@ -60,10 +71,11 @@ elif page == "Upload Dataset & Train":
             model.fit(X_train, y_train)
             st.success("✅ Model trained successfully!")
 
-            # Save objects to session state
+            # Save to session state
             st.session_state['model'] = model
-            st.session_state['le'] = le
-            st.session_state['symptom_cols'] = symptom_cols
+            st.session_state['le_dict'] = le_dict
+            st.session_state['le_target'] = le_target
+            st.session_state['feature_cols'] = X.columns.tolist()
 
 # --- Predict Tumor ---
 elif page == "Predict Tumor":
@@ -72,32 +84,32 @@ elif page == "Predict Tumor":
     else:
         st.subheader("Enter patient details")
 
-        age = st.slider("Age", 1, 100)
-        gender = st.selectbox("Gender", ["Male", "Female", "Other"])
-        symptoms = st.multiselect(
-            "Select Symptoms",
-            st.session_state['symptom_cols']
-        )
+        input_data = {}
+        for col in st.session_state['feature_cols']:
+            if col.lower() == 'age':
+                input_data[col] = st.slider("Age", 1, 100)
+            elif col.lower() == 'gender':
+                input_data[col] = st.selectbox("Gender", ["Male", "Female", "Other"])
+            else:
+                # For symptom columns
+                input_data[col] = st.selectbox(f"{col}", ["No", "Yes"])
 
         if st.button("Predict"):
-            # Prepare input
-            input_data = {}
-            input_data['Age'] = age
-            input_data['Gender'] = st.session_state['le'].transform([gender])[0]
-            for col in st.session_state['symptom_cols']:
-                input_data[col] = 1 if col in symptoms else 0
+            # Convert input to numeric using saved LabelEncoders
             input_df = pd.DataFrame([input_data])
+            for col, le in st.session_state['le_dict'].items():
+                input_df[col] = le.transform(input_df[col].astype(str))
 
             # Predict
             model = st.session_state['model']
             pred = model.predict(input_df)[0]
             prob = model.predict_proba(input_df).max() * 100
-            tumor_label = st.session_state['le'].inverse_transform([pred])[0]
+            tumor_label = st.session_state['le_target'].inverse_transform([pred])[0]
 
             st.success(f"Tumor Type: **{tumor_label}**")
-            st.info(f"Probability: **{prob:.2f}%**")
+            st.info(f"Prediction Confidence: **{prob:.2f}%**")
 
-            # Advice
+            # Advice section
             st.subheader("Advice & Tips")
             st.write("""
             - See a neurologist immediately  
